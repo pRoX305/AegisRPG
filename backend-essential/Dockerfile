@@ -1,35 +1,34 @@
 # Production Dockerfile for Last Aegis Backend
-  FROM node:20-alpine
+FROM node:20-alpine
 
-  # Set working directory
-  WORKDIR /app
+# Set working directory
+WORKDIR /app
 
-  # Copy package files
-  COPY package*.json ./
+# Copy package files
+COPY package*.json ./
 
-  # Install dependencies
-  RUN npm install --only=production
+# Install dependencies
+RUN npm ci --only=production
 
-  # Copy application code
-  COPY . .
+# Copy application code
+COPY . .
 
-  # Copy production environment file
-  COPY .env.production .env
+# Environment variables will be set via Cloud Run configuration
 
-  # Create non-root user for security
-  RUN addgroup -g 1001 -S nodejs
-  RUN adduser -S lastaegis -u 1001
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S lastaegis -u 1001
 
-  # Change ownership of the app directory
-  RUN chown -R lastaegis:nodejs /app
-  USER lastaegis
+# Change ownership of the app directory
+RUN chown -R lastaegis:nodejs /app
+USER lastaegis
 
-  # Set environment variables
-  ENV NODE_ENV=production
-  ENV PORT=8080
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=8080
 
-  # Expose port
-  EXPOSE 8080
+# Expose port
+EXPOSE 8080
 
-  # Start the application
-  CMD ["npm", "start"]
+# Start the application
+CMD ["npm", "start"]
