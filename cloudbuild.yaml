@@ -1,47 +1,48 @@
-  steps:
-    # Build the Docker image from the backend directory
-    - name: 'gcr.io/cloud-builders/docker'
-      args: [
-        'build',
-        '-t', '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA',
-        './backend-essential'
-      ]
-      id: Build
+steps:
+  # Build the Docker image from the backend directory
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-t', '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA',
+      './backend-essential'
+    ]
+    id: Build
 
-    # Push the image to Artifact Registry
-    - name: 'gcr.io/cloud-builders/docker'
-      args: [
-        'push',
-        '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-      ]
-      id: Push
+  # Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'push',
+      '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
+    ]
+    id: Push
 
-    # Deploy to Cloud Run
-    - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-      entrypoint: gcloud
-      args: [
-        'run', 'deploy', '$_SERVICE_NAME',
-        '--image', '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA',
-        '--region', '$_DEPLOY_REGION',
-        '--platform', 'managed',
-        '--allow-unauthenticated',
-        '--port=8080',
-        '--set-env-vars', 'NODE_ENV=production,PORT=8080,API_VERSION=v1,LOG_LEVEL=info,BCRYPT_ROUNDS=12,RATE_LIMIT_WINDOW=15,RATE_LIMIT_MAX=100,RATE_LIMIT_AUTH_MAX=5',
-        '--set-secrets', 'JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest',
-        '--add-cloudsql-instances', '$_CLOUD_SQL_INSTANCE',
-        '--memory', '512Mi',
-        '--cpu', '1',
-        '--concurrency', '80',
-        '--timeout', '300'
-      ]
-      id: Deploy
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args: [
+      'run', 'deploy', '$_SERVICE_NAME',
+      '--image', '$_GCR_HOSTNAME/$PROJECT_ID/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA',
+      '--region', '$_DEPLOY_REGION',
+      '--platform', 'managed',
+      '--allow-unauthenticated',
+      '--port=8080',
+      '--set-env-vars', 'NODE_ENV=production,API_VERSION=v1,LOG_LEVEL=info,BCRYPT_ROUNDS=12,RATE_LIMIT_WINDOW=15,RATE_LIMIT_MAX=100,RATE_LIMIT_AUTH_MAX=5',
+      '--set-secrets', 'JWT_SECRET=jwt-secret:latest,DATABASE_URL=database-url:latest',
+      '--add-cloudsql-instances', '$_CLOUD_SQL_INSTANCE',
+      '--memory', '512Mi',
+      '--cpu', '1',
+      '--concurrency', '80',
+      '--timeout', '300'
+    ]
+    id: Deploy
 
-  substitutions:
-    _GCR_HOSTNAME: us-central1-docker.pkg.dev
-    _SERVICE_NAME: aegis
-    _DEPLOY_REGION: us-central1
-    _CLOUD_SQL_INSTANCE: last-aegis-production:us-central1:last-aegis-db
+# Configure substitution variables
+substitutions:
+  _GCR_HOSTNAME: us-central1-docker.pkg.dev
+  _SERVICE_NAME: aegis
+  _DEPLOY_REGION: us-central1
+  _CLOUD_SQL_INSTANCE: last-aegis-production:us-central1:last-aegis-db
 
-  options:
-    substitution_option: ALLOW_LOOSE
-    logging: CLOUD_LOGGING_ONLY
+options:
+  substitution_option: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
