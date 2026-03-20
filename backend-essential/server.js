@@ -162,79 +162,50 @@ app.use(errorHandler);
 
 // Initialize database and start server
 async function startServer() {
-  try {
-    // Record startup
-    const startupInfo = startupDetector.recordStartup();
-    await startupDetector.sendStartupNotification(startupInfo);
+  // Record startup
+  const startupInfo = startupDetector.recordStartup();
+  await startupDetector.sendStartupNotification(startupInfo);
 
-    // Initialize database connection
+  // Start listening immediately so Cloud Run health check passes
+  const server = app.listen(PORT, () => {
+    logger.info(`🚀 Last Aegis Auth Server running on port ${PORT}`);
+    logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
+    logger.info(`🔗 API Base URL: http://localhost:${PORT}/api/${apiVersion}`);
+  });
+
+  // Graceful shutdown handlers
+  const gracefulShutdown = async(signal) => {
+    logger.info(`${signal} received, shutting down gracefully`);
+    startupDetector.recordShutdown('manual_signal', { signal });
+    server.close(async() => {
+      logger.info('HTTP server closed');
+      try {
+        autoShutdown.stopMonitoring();
+        await db.close();
+        logger.info('Database connection closed');
+      } catch (error) {
+        logger.error('Error closing database:', error);
+      }
+      logger.info('Process terminated');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // Connect to database after server is listening
+  try {
     logger.info('🔗 Initializing database connection...');
     await db.initialize();
     logger.info('✅ Database connected successfully');
-
-    // Start cost monitoring
     costMonitor.startMonitoring();
-
-    // Start server
-    const server = app.listen(PORT, () => {
-      logger.info(`🚀 Last Aegis Auth Server running on port ${PORT}`);
-      logger.info(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info(`🔗 API Base URL: http://localhost:${PORT}/api/${apiVersion}`);
-
-      if (process.env.NODE_ENV === 'development') {
-        logger.info('📚 Available endpoints:');
-        logger.info(`   POST /api/${apiVersion}/auth/register`);
-        logger.info(`   POST /api/${apiVersion}/auth/login`);
-        logger.info(`   POST /api/${apiVersion}/auth/refresh`);
-        logger.info(`   POST /api/${apiVersion}/auth/logout`);
-        logger.info(`   POST /api/${apiVersion}/auth/forgot-password`);
-        logger.info(`   GET  /api/${apiVersion}/user/profile`);
-        logger.info(`   PUT  /api/${apiVersion}/user/profile`);
-        logger.info(`   GET  /api/${apiVersion}/user/stats`);
-        logger.info(`   POST /api/${apiVersion}/matchmaking/queue`);
-        logger.info(`   GET  /api/${apiVersion}/matchmaking/queue/status`);
-        logger.info('   GET  /monitoring/health');
-        logger.info('   GET  /monitoring/bandwidth');
-      }
-
-      logger.info('🛡️ Bandwidth protection enabled');
-      logger.info('💰 Cost monitoring active');
-      if (autoShutdown.enabled) {
-        logger.info(`🕒 Auto-shutdown enabled: ${process.env.AUTO_SHUTDOWN_IDLE_MINUTES || 120} minutes idle timeout`);
-      } else {
-        logger.info('🕒 Auto-shutdown disabled (development mode)');
-      }
-    });
-
-    // Graceful shutdown handlers
-    const gracefulShutdown = async(signal) => {
-      logger.info(`${signal} received, shutting down gracefully`);
-
-      // Record shutdown
-      startupDetector.recordShutdown('manual_signal', { signal });
-
-      server.close(async() => {
-        logger.info('HTTP server closed');
-
-        try {
-          autoShutdown.stopMonitoring();
-          await db.close();
-          logger.info('Database connection closed');
-        } catch (error) {
-          logger.error('Error closing database:', error);
-        }
-
-        logger.info('Process terminated');
-        process.exit(0);
-      });
-    };
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
+    logger.info('🛡️ Bandwidth protection enabled');
+    logger.info('💰 Cost monitoring active');
   } catch (error) {
-    logger.error('❌ Failed to start server:', error);
-    process.exit(1);
+    logger.error('❌ Database connection failed — server running without DB:', error);
+    // Do not exit — let the server stay up so health checks pass
+    // DB-dependent routes will return errors until connection is restored
   }
 }
 
