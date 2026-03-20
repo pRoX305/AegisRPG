@@ -86,12 +86,12 @@ const logger = winston.createLogger({
   ]
 });
 
-// Add console transport in production for critical errors
+// Always log to console so Cloud Run logs are visible
 if (process.env.NODE_ENV === 'production') {
   logger.add(
     new winston.transports.Console({
       format: consoleFormat,
-      level: 'error'
+      level: process.env.LOG_LEVEL || 'info'
     })
   );
 }

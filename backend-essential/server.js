@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Ensure crashes are visible in Cloud Run logs
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason);
+});
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
