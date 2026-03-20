@@ -1,13 +1,16 @@
+console.log('[BOOT] 1: dotenv');
 require('dotenv').config();
 
 // Ensure crashes are visible in Cloud Run logs
 process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION:', err);
+  console.error('UNCAUGHT EXCEPTION:', err.message, err.stack);
   process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
   console.error('UNHANDLED REJECTION:', reason);
 });
+
+console.log('[BOOT] 2: express deps');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -15,25 +18,26 @@ const compression = require('compression');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
-// Import database connection
+console.log('[BOOT] 3: database');
 const db = require('./database/connection');
 
-// Import passport configuration
+console.log('[BOOT] 4: passport');
 const passport = require('./config/passport');
 
-// Import routes
+console.log('[BOOT] 5: routes');
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/user');
 const matchmakingRoutes = require('./routes/matchmaking');
 const monitoringRoutes = require('./routes/monitoring');
 
-// Import middleware
+console.log('[BOOT] 6: middleware');
 const errorHandler = require('./middleware/errorHandler');
 const bandwidthProtection = require('./middleware/bandwidth-protection');
 const autoShutdown = require('./middleware/auto-shutdown');
 const costMonitor = require('./scripts/cost-monitor');
 const startupDetector = require('./scripts/startup-detector');
 const logger = require('./utils/logger');
+console.log('[BOOT] 7: all requires done');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
