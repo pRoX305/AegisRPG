@@ -25,9 +25,11 @@ class DatabaseConnection {
         });
       } else if (process.env.DATABASE_URL) {
         // Use DATABASE_URL if provided (for production)
+        // Disable SSL for Cloud SQL Unix socket connections (/cloudsql/ path)
+        const isSocketConnection = process.env.DATABASE_URL.includes('/cloudsql/');
         this.pool = new Pool({
           connectionString: process.env.DATABASE_URL,
-          ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+          ssl: (!isSocketConnection && process.env.NODE_ENV === 'production') ? { rejectUnauthorized: false } : false,
           max: 20,
           idleTimeoutMillis: 30000,
           connectionTimeoutMillis: 10000,
